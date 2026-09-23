@@ -72,13 +72,13 @@ Bus smartphone sensors
 - [x] Feature extraction test suite passing (`tests/test_features.py`) — 11 pytest checks
 - [x] Feature distribution analysis (`src/processing/analyze_feature_distributions.py`) implemented
 - [x] Feature distribution test suite passing (`tests/test_feature_distributions.py`) — 10 pytest checks
-- [ ] Candidate event detection — not yet implemented
-- [ ] Event classification — not yet implemented
-- [ ] False-positive filtering — not yet implemented
-- [ ] Geospatial map-matching — not yet implemented
-- [ ] Multi-pass aggregation & scoring — not yet implemented
-- [ ] REST API — not yet implemented
-- [ ] Frontend dashboard — not yet implemented
+- [x] Candidate event detection (`src/processing/detect_candidates.py`) implemented
+- [x] Event classification (`src/processing/classify_events.py`) implemented
+- [x] False-positive filtering (`src/processing/filter_events.py`) implemented
+- [x] Geospatial GPS processing & map-matching (`src/geospatial/map_matching.py`) implemented
+- [x] Multi-pass aggregation & scoring (`src/processing/score_segments.py`) implemented
+- [x] REST API (`src/api/main.py`) implemented — Milestone 12 Complete
+- [ ] Frontend dashboard integration
 
 ## Mock Sensor Data & Simulation
 
@@ -150,20 +150,56 @@ Bus smartphone sensors
   - `window_label_analysis.csv` — per-window label, purity, and all 41 features for reference.
   - `accel_z_max_abs_diff.png`, `accel_z_peak_to_peak.png`, `accel_z_std.png`, `accel_y_mean.png`, `accel_y_max_abs.png`, `accel_x_max_abs.png`, `gyro_z_max_abs.png`, `gyro_mag_max.png` — side-by-side boxplots for the 8 most discriminating features.
 
+## Milestone 12 — REST API Layer
 
+A lightweight, read-only FastAPI service exposing pipeline results to the Next.js frontend dashboard.
 
-### Backend (Python)
+### Endpoints
 
-```bash
-# Activate the virtual environment (Windows)
-.venv\Scripts\activate
+| Method | Endpoint | Description | Key Fields / Purpose |
+|--------|----------|-------------|-----------------------|
+| `GET` | `/health` | API health check | `{"status": "ok"}` |
+| `GET` | `/segments` | Scored road segments from `data/processed/scored_segments.csv` | `road_segment_id`, `total_event_count`, `unique_pass_count`, `pothole_count`, `speed_breaker_count`, `rough_road_count`, `rough_patch_count`, `severity_score`, `severity_label`, `confidence_score`, `confidence_percent`, `confidence_label`, `primary_condition` |
+| `GET` | `/events` | Map-matched road events from `data/processed/map_matched_events.csv` | `event_id`, `pass_id`, `event_type`, `start_time`, `end_time`, `duration`, `center_latitude`, `center_longitude`, `map_match_latitude`, `map_match_longitude`, `road_segment_id`, `map_match_status`, `latitude`, `longitude` |
 
-# Activate the virtual environment (macOS / Linux)
-source .venv/bin/activate
+### Frontend Compatibility & Normalization
+- The backend internal pipeline identifies rough road segments/events as `rough_road`.
+- The frontend TypeScript model expects `rough_patch`.
+- The API layer normalizes `rough_road` → `rough_patch` at the API boundary (`primary_condition`, `event_types_observed`, `event_type`, and adds `rough_patch_count`), ensuring zero breaking changes to internal processing CSVs.
+- Ground truth fields (`ground_truth_event`, `ground_truth_type`) are strictly isolated and never exposed.
 
-# Install dependencies (once requirements.txt is populated)
-pip install -r requirements.txt
-```
+### Prototype Architecture Note
+- **Hackathon prototype:** The API reads directly from pre-computed CSV pipeline artifacts (`scored_segments.csv` and `map_matched_events.csv`).
+- **Production transition:** In a production deployment, these CSV files can be substituted with a spatial database (e.g., PostgreSQL / PostGIS) or time-series datastore without modifying the API contract consumed by the frontend.
+
+## Running the Application
+
+### Backend (FastAPI REST API)
+
+1. Activate virtual environment:
+   ```bash
+   # Windows
+   .venv\Scripts\activate
+
+   # macOS / Linux
+   source .venv/bin/activate
+   ```
+
+2. Install dependencies (including FastAPI and uvicorn):
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. Start the FastAPI development server:
+   ```bash
+   uvicorn src.api.main:app --reload --port 8000
+   ```
+   The interactive API docs will be available at [http://localhost:8000/docs](http://localhost:8000/docs).
+
+4. Run tests:
+   ```bash
+   pytest
+   ```
 
 ### Frontend (Next.js)
 
