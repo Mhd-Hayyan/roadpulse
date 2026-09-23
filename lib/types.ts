@@ -34,6 +34,18 @@ export interface RoadEvent {
   /** GPS longitude coordinate */
   longitude: number;
 
+  /** Raw center latitude coordinate */
+  center_latitude?: number;
+
+  /** Raw center longitude coordinate */
+  center_longitude?: number;
+
+  /** Map-matched latitude coordinate */
+  map_match_latitude?: number;
+
+  /** Map-matched longitude coordinate */
+  map_match_longitude?: number;
+
   /** Identifier of the road segment containing this event, e.g., "segment_015" */
   road_segment_id: string;
 
