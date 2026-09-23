@@ -62,6 +62,21 @@ export interface RoadEvent {
 }
 
 // ---------------------------------------------------------------------------
+// RoadSegmentGeometry (Backend API Shape)
+// ---------------------------------------------------------------------------
+
+/**
+ * Shape of road segment geometry returned by the backend API.
+ */
+export interface RoadSegmentGeometry {
+  road_segment_id: string;
+  geometry: [number, number][];
+  severity?: number;
+  confidence?: number;
+  pass_count?: number;
+}
+
+// ---------------------------------------------------------------------------
 // RoadSegment
 // ---------------------------------------------------------------------------
 
@@ -71,6 +86,9 @@ export interface RoadEvent {
 export interface RoadSegment {
   /** Unique segment identifier, e.g., "segment_014" */
   id: string;
+
+  /** Alias matching backend key `road_segment_id` */
+  road_segment_id?: string;
 
   /** Segment name or corridor description, e.g., "Kaloor - Edappally Road" */
   name: string;
@@ -98,4 +116,7 @@ export interface RoadSegment {
 
   /** Aggregated confidence score for this segment (0.0 - 1.0) */
   confidence: number;
+
+  /** Road polyline geometry coordinates [[lat, lon], ...] */
+  geometry?: [number, number][];
 }

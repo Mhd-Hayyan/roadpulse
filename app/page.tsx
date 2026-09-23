@@ -1,101 +1,178 @@
-import Image from "next/image";
+"use client";
+
+import React, { useEffect, useState, useMemo } from "react";
+import dynamic from "next/dynamic";
+import Header from "@/components/Header";
+import FilterPanel, { type FilterState } from "@/components/FilterPanel";
+import DetailsPanel from "@/components/DetailsPanel";
+import Legend from "@/components/Legend";
+import { getRoadEvents, getRoadSegments } from "@/lib/data";
+import type { RoadEvent, RoadSegment } from "@/lib/types";
+
+// Dynamically import Leaflet map component with ssr: false to prevent window/document errors during Next.js SSR build
+const MapView = dynamic(() => import("@/components/Map/MapView"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-full w-full items-center justify-center bg-muted">
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <span className="h-3 w-3 animate-spin rounded-full border-2 border-muted-foreground/40 border-t-foreground" />
+        Loading corridor map…
+      </div>
+    </div>
+  ),
+});
+
+const DEFAULT_FILTERS: FilterState = {
+  activeTypes: {
+    pothole: true,
+    speed_breaker: true,
+    rough_patch: true,
+  },
+  minSeverity: 0,
+  minConfidence: 0.0,
+  showHeatmapLayer: true,
+};
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const [allEvents, setAllEvents] = useState<RoadEvent[]>([]);
+  const [allSegments, setAllSegments] = useState<RoadSegment[]>([]);
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
+  const [selectedEvent, setSelectedEvent] = useState<RoadEvent | null>(null);
+  const [selectedSegment, setSelectedSegment] = useState<RoadSegment | null>(
+    null
+  );
+
+  const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
+
+  // Initialize theme from localStorage or default to dark
+  useEffect(() => {
+    const savedTheme = localStorage.getItem("roadpulse-theme") as
+      | "dark"
+      | "light"
+      | null;
+    const initialTheme = savedTheme || "dark";
+    setTheme(initialTheme);
+    const root = document.documentElement;
+    root.classList.remove("light", "dark");
+    root.classList.add(initialTheme);
+  }, []);
+
+  const handleToggleTheme = () => {
+    setTheme((prev) => {
+      const next: "dark" | "light" = prev === "dark" ? "light" : "dark";
+      const root = document.documentElement;
+      root.classList.remove("light", "dark");
+      root.classList.add(next);
+      localStorage.setItem("roadpulse-theme", next);
+      return next;
+    });
+  };
+
+  // Load initial data from lib/data.ts
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const [eventsData, segmentsData] = await Promise.all([
+          getRoadEvents(),
+          getRoadSegments(),
+        ]);
+        setAllEvents(eventsData);
+        setAllSegments(segmentsData);
+      } catch (err) {
+        console.error("Failed to load road data:", err);
+      }
+    }
+    loadData();
+  }, []);
+
+  // Filter events based on active UI filter state (independent ON/OFF controls, severity, confidence)
+  const filteredEvents = useMemo(() => {
+    return allEvents.filter((event) => {
+      if (!filters.activeTypes[event.event_type]) {
+        return false;
+      }
+      if (event.severity < filters.minSeverity) {
+        return false;
+      }
+      if (event.confidence < filters.minConfidence) {
+        return false;
+      }
+      return true;
+    });
+  }, [allEvents, filters]);
+
+  const handleFilterChange = (updated: Partial<FilterState>) => {
+    setFilters((prev) => ({ ...prev, ...updated }));
+  };
+
+  const handleResetFilters = () => {
+    setFilters(DEFAULT_FILTERS);
+  };
+
+  const handleSelectEvent = (event: RoadEvent) => {
+    setSelectedSegment(null);
+    setSelectedEvent(event);
+  };
+
+  const handleSelectSegment = (segment: RoadSegment) => {
+    setSelectedEvent(null);
+    setSelectedSegment(segment);
+  };
+
+  const handleCloseDetails = () => {
+    setSelectedEvent(null);
+    setSelectedSegment(null);
+  };
+
+  return (
+    <div className="flex h-screen flex-col bg-background text-foreground transition-colors overflow-hidden select-none">
+      {/* 1. Header */}
+      <Header theme={theme} onToggleTheme={handleToggleTheme} />
+
+      {/* 2. Main Map Viewport with Floating Overlays */}
+      <main className="relative flex-1 overflow-hidden">
+        {/* Leaflet Map Hero */}
+        <MapView
+          events={filteredEvents}
+          segments={allSegments}
+          selectedEventId={selectedEvent?.event_id ?? null}
+          selectedSegmentId={selectedSegment?.id ?? null}
+          showHeatmapLayer={filters.showHeatmapLayer}
+          onSelectEvent={handleSelectEvent}
+          onSelectSegment={handleSelectSegment}
+        />
+
+        {/* Left floating overlay: FilterPanel + Compact Legend at bottom */}
+        <div className="pointer-events-none absolute inset-y-0 left-0 z-[500] flex flex-col justify-between p-4">
+          <div className="pointer-events-auto">
+            <FilterPanel
+              filters={filters}
+              allEvents={allEvents}
+              onFilterChange={handleFilterChange}
+              onResetFilters={handleResetFilters}
+              totalFilteredCount={filteredEvents.length}
+              totalEventsCount={allEvents.length}
             />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+          </div>
+          <div className="pointer-events-auto">
+            <Legend />
+          </div>
+        </div>
+
+        {/* Right floating overlay: Contextual Details Card */}
+        <div className="pointer-events-none absolute inset-y-0 right-0 z-[500] flex flex-col justify-start p-4">
+          <div className="pointer-events-auto">
+            <DetailsPanel
+              selectedEvent={selectedEvent}
+              selectedSegment={selectedSegment}
+              allSegments={allSegments}
+              onClose={handleCloseDetails}
+              onViewSegment={handleSelectSegment}
+            />
+          </div>
         </div>
       </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
     </div>
   );
 }

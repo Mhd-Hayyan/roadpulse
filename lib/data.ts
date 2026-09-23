@@ -3,17 +3,19 @@
  *
  * Data Access Layer for RoadPulse.
  *
- * Provides async functions to fetch road anomaly events and segment summaries.
- * Currently backed by mock data (lib/mockData.ts).
+ * Provides async functions to fetch road anomaly events, segment summaries,
+ * and road segment polyline geometries.
+ * Currently backed by mock data (lib/mockData.ts and lib/mockGeometry.ts).
  *
  * In production / backend integration:
- * Replace the return statements in fetchRoadEvents() and fetchRoadSegments()
- * with actual fetch() calls to the Python REST API (e.g. GET /api/events).
+ * Replace the return statements with actual fetch() calls to the Python REST API
+ * (e.g., GET /api/road-events and GET /api/road-segments).
  * UI components consuming these functions will require ZERO code changes.
  */
 
-import type { RoadEvent, RoadSegment, EventType } from "./types";
+import type { RoadEvent, RoadSegment, RoadSegmentGeometry, EventType } from "./types";
 import { MOCK_EVENTS, MOCK_SEGMENTS } from "./mockData";
+import { MOCK_ROAD_GEOMETRIES, getSegmentGeometry } from "./mockGeometry";
 
 export interface EventFilterOptions {
   eventType?: EventType | "all";
@@ -63,4 +65,21 @@ export async function getRoadSegmentById(id: string): Promise<RoadSegment | null
 
   const segment = MOCK_SEGMENTS.find((s) => s.id === id);
   return segment || null;
+}
+
+/**
+ * Fetch map polyline geometry coordinates for a road segment.
+ * Accepts road_segment_id and returns [[lat, lon], ...]
+ */
+export function getRoadSegmentGeometry(segmentId: string): [number, number][] {
+  return getSegmentGeometry(segmentId);
+}
+
+/**
+ * Fetch raw segment geometry objects matching future backend API shape:
+ * { road_segment_id, geometry, severity, confidence, pass_count }
+ */
+export async function getRoadSegmentGeometries(): Promise<RoadSegmentGeometry[]> {
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  return [...MOCK_ROAD_GEOMETRIES];
 }
