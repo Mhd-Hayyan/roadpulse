@@ -54,7 +54,7 @@ Bus smartphone sensors
 | `tests/` | Unit and integration tests for all modules |
 | `app/` | Next.js App Router — frontend pages and API routes |
 
-## Current Status — Milestone 5 Complete
+## Current Status — Milestone 6A Complete
 
 - [x] Project directory structure created
 - [x] Python virtual environment (`.venv`) created
@@ -63,14 +63,18 @@ Bus smartphone sensors
 - [x] Next.js + TypeScript + Tailwind CSS + Leaflet frontend scaffolded
 - [x] Mock sensor data generator (`src/generator/mock_data.py`) implemented
 - [x] Multi-pass raw sensor dataset generated (`data/raw/sensor_data.csv`)
-- [x] Dataset validation suite passing (`tests/test_sensor_data.py`)
+- [x] Dataset validation suite passing (`tests/test_sensor_data.py`) — 13 pytest checks
 - [x] Signal inspection & visualization (`src/processing/inspect_signals.py`) implemented
-- [x] Signal inspection test suite passing (`tests/test_signal_inspection.py`)
+- [x] Signal inspection test suite passing (`tests/test_signal_inspection.py`) — 5 pytest checks
 - [x] Sensor preprocessing pipeline (`src/processing/preprocessing.py`) implemented
-- [x] Preprocessing test suite passing (`tests/test_preprocessing.py`)
+- [x] Preprocessing test suite passing (`tests/test_preprocessing.py`) — 9 pytest checks
 - [x] Feature extraction pipeline (`src/processing/features.py`) implemented
-- [x] Feature extraction test suite passing (`tests/test_features.py`)
-- [ ] Event detection & classification — not yet implemented
+- [x] Feature extraction test suite passing (`tests/test_features.py`) — 11 pytest checks
+- [x] Feature distribution analysis (`src/processing/analyze_feature_distributions.py`) implemented
+- [x] Feature distribution test suite passing (`tests/test_feature_distributions.py`) — 10 pytest checks
+- [ ] Candidate event detection — not yet implemented
+- [ ] Event classification — not yet implemented
+- [ ] False-positive filtering — not yet implemented
 - [ ] Geospatial map-matching — not yet implemented
 - [ ] Multi-pass aggregation & scoring — not yet implemented
 - [ ] REST API — not yet implemented
@@ -125,7 +129,28 @@ Bus smartphone sensors
 - **Strict Ground Truth Isolation:** Ground truth columns (`ground_truth_event`, `ground_truth_type`) are strictly excluded during feature calculation and do not exist in the features dataset. Detection code will rely exclusively on sensor-derived motion statistics.
 - **Output Location:** The extracted features dataset is saved to `data/processed/features.csv`.
 
-## Getting Started
+## Milestone 6A — Feature Distribution Analysis
+
+- **Why Analyse Feature Distributions?** Before writing any detection rules or thresholds, we need empirical evidence that our extracted features actually differ between road-surface anomaly scenarios and normal driving. If a feature does not separate scenarios it adds noise to detection; if it does, we know its threshold range.
+- **Window Label Assignment:** Each feature window is assigned a dominant scenario label by taking the most frequent `ground_truth_type` value among all raw samples that fall inside that window. The window's **purity** (fraction of samples matching the dominant label) measures how cleanly a single scenario occupies the window. Windows with purity ≥ 0.80 are used for analysis (94.86% of all windows qualify).
+- **Ground Truth Role in 6A:** Ground truth is used here **only for analysis and visualization** — it is never used by the actual detection pipeline. The feature distribution plots are reference material for the human designer setting detection thresholds, not inputs to any algorithm.
+- **Key Discriminating Features Identified:**
+
+  | Feature | What it Separates |
+  |---------|-------------------|
+  | `accel_z_max_abs_diff` | Pothole (sharp spike) vs. normal cruising |
+  | `accel_z_peak_to_peak` | Speed breaker (broad vertical swing) vs. normal |
+  | `accel_z_std` / `accel_z_rms` | Rough road (sustained vibration) vs. normal |
+  | `accel_y_mean` | Braking (negative) / acceleration (positive) vs. road events (~0) |
+  | `accel_x_max_abs` | Turning (lateral spike) vs. all road events |
+  | `gyro_z_max_abs` | Turning (yaw rate) vs. all road events |
+
+- **Outputs:** All outputs are saved under `data/processed/feature_analysis/`:
+  - `feature_distribution_summary.csv` — per-feature median, IQR, min, max broken down by scenario.
+  - `window_label_analysis.csv` — per-window label, purity, and all 41 features for reference.
+  - `accel_z_max_abs_diff.png`, `accel_z_peak_to_peak.png`, `accel_z_std.png`, `accel_y_mean.png`, `accel_y_max_abs.png`, `accel_x_max_abs.png`, `gyro_z_max_abs.png`, `gyro_mag_max.png` — side-by-side boxplots for the 8 most discriminating features.
+
+
 
 ### Backend (Python)
 

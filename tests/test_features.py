@@ -64,6 +64,90 @@ def _check(label, condition, detail=""):
     return condition
 
 
+# ─── Pytest-compatible individual test functions ──────────────────────────────
+
+def _load_features():
+    """Helper: load preprocessed data and run feature extraction in-memory."""
+    preproc_df = load_preprocessed_data(INPUT_DATA_PATH)
+    features_df = extract_dataset_features(preproc_df)
+    return preproc_df, features_df
+
+
+def test_preprocessed_dataset_loads_successfully():
+    preproc_df = load_preprocessed_data(INPUT_DATA_PATH)
+    assert isinstance(preproc_df, pd.DataFrame) and len(preproc_df) > 0
+
+
+def test_feature_extraction_runs_successfully():
+    preproc_df, features_df = _load_features()
+    assert isinstance(features_df, pd.DataFrame) and len(features_df) > 0
+
+
+def test_feature_output_is_non_empty():
+    preproc_df, features_df = _load_features()
+    assert len(features_df) > 0
+
+
+def test_all_expected_feature_columns_exist():
+    preproc_df, features_df = _load_features()
+    missing = set(EXPECTED_FEATURE_COLUMNS) - set(features_df.columns)
+    assert len(missing) == 0, f"missing: {missing}"
+
+
+def test_ground_truth_columns_completely_absent():
+    preproc_df, features_df = _load_features()
+    gt_columns = ["ground_truth_event", "ground_truth_type"]
+    found_gt = [c for c in gt_columns if c in features_df.columns]
+    assert len(found_gt) == 0, f"forbidden columns found: {found_gt}"
+
+
+def test_no_nan_or_infinite_values_in_features():
+    preproc_df, features_df = _load_features()
+    numeric_cols = features_df.select_dtypes(include=[np.number]).columns
+    for col in numeric_cols:
+        assert not features_df[col].isna().any(), f"NaN in column: {col}"
+        assert not np.isinf(features_df[col]).any(), f"Inf in column: {col}"
+
+
+def test_all_four_passes_represented():
+    preproc_df, features_df = _load_features()
+    passes = features_df["pass_id"].unique()
+    assert len(passes) == 4 and set(passes) == {1, 2, 3, 4}, (
+        f"passes found: {passes}"
+    )
+
+
+def test_windows_do_not_cross_pass_boundaries():
+    preproc_df, features_df = _load_features()
+    for pid, grp in features_df.groupby("pass_id"):
+        assert (grp["window_start"] < grp["window_end"]).all(), (
+            f"window_start >= window_end in pass {pid}"
+        )
+        diffs = np.diff(grp["window_start"].values)
+        assert (diffs > 0).all(), f"window_start not strictly ordered in pass {pid}"
+
+
+def test_window_duration_approximately_correct():
+    preproc_df, features_df = _load_features()
+    mean_duration = float(features_df["window_duration"].mean())
+    assert 0.45 <= mean_duration <= 0.55, (
+        f"mean window duration out of range: {mean_duration:.3f} s"
+    )
+
+
+def test_all_numerical_feature_values_are_finite():
+    preproc_df, features_df = _load_features()
+    numeric_cols = features_df.select_dtypes(include=[np.number]).columns
+    assert np.all(np.isfinite(features_df[numeric_cols].values))
+
+
+def test_dataset_compressed_from_samples_to_windows():
+    preproc_df, features_df = _load_features()
+    assert len(features_df) < len(preproc_df) * 0.25, (
+        f"expected compression: preproc={len(preproc_df)}, features={len(features_df)}"
+    )
+
+
 def run():
     results = []
 

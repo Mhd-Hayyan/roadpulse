@@ -46,7 +46,6 @@ EXPECTED_PROCESSED_COLUMNS = [
     "gyro_z_smooth",
 ]
 
-
 def _check(label, condition, detail=""):
     icon = "[PASS]" if condition else "[FAIL]"
     line = f"  {icon}  {label}"
@@ -54,6 +53,75 @@ def _check(label, condition, detail=""):
         line += f"  -  {detail}"
     print(line)
     return condition
+
+
+# ─── Pytest-compatible individual test functions ──────────────────────────────
+
+def _load_data():
+    """Helper: load raw data and run preprocessing in-memory."""
+    raw_df = load_sensor_data(RAW_DATA_PATH)
+    processed_df = preprocess_dataset(raw_df)
+    return raw_df, processed_df
+
+
+def test_raw_dataset_loads_successfully():
+    raw_df = load_sensor_data(RAW_DATA_PATH)
+    assert isinstance(raw_df, pd.DataFrame) and len(raw_df) > 0
+
+
+def test_all_expected_raw_columns_remain():
+    raw_df, processed_df = _load_data()
+    assert all(col in processed_df.columns for col in EXPECTED_RAW_COLUMNS)
+
+
+def test_all_expected_processed_columns_exist():
+    raw_df, processed_df = _load_data()
+    missing = set(EXPECTED_PROCESSED_COLUMNS) - set(processed_df.columns)
+    assert len(missing) == 0, f"missing: {missing}"
+
+
+def test_no_nan_values_introduced():
+    raw_df, processed_df = _load_data()
+    nan_cols = processed_df.columns[processed_df.isna().any()].tolist()
+    assert not processed_df.isna().any().any(), f"columns with NaN: {nan_cols}"
+
+
+def test_row_count_unchanged():
+    raw_df, processed_df = _load_data()
+    assert len(processed_df) == len(raw_df), (
+        f"raw: {len(raw_df)}, processed: {len(processed_df)}"
+    )
+
+
+def test_all_four_passes_remain():
+    raw_df, processed_df = _load_data()
+    raw_passes = set(raw_df["pass_id"].unique())
+    proc_passes = set(processed_df["pass_id"].unique())
+    assert raw_passes == proc_passes and len(proc_passes) == 4, (
+        f"passes found: {proc_passes}"
+    )
+
+
+def test_timestamps_and_raw_signals_unchanged():
+    raw_df, processed_df = _load_data()
+    assert np.allclose(processed_df["timestamp"], raw_df["timestamp"])
+    assert np.allclose(processed_df["accel_z"], raw_df["accel_z"])
+
+
+def test_dynamic_vertical_acceleration_centered_near_zero():
+    raw_df, processed_df = _load_data()
+    normal_driving = processed_df[processed_df["ground_truth_type"] == "none"]
+    mean_dyn = abs(float(normal_driving["accel_z_dynamic"].mean()))
+    assert mean_dyn < 0.10, f"mean dynamic accel_z: {mean_dyn:.4f} m/s^2"
+
+
+def test_raw_csv_not_modified():
+    mtime_before = RAW_DATA_PATH.stat().st_mtime
+    size_before = RAW_DATA_PATH.stat().st_size
+    _load_data()
+    mtime_after = RAW_DATA_PATH.stat().st_mtime
+    size_after = RAW_DATA_PATH.stat().st_size
+    assert mtime_before == mtime_after and size_before == size_after
 
 
 def run():
