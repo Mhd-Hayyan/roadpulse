@@ -34,25 +34,35 @@ export interface RoadEvent {
   /** GPS longitude coordinate */
   longitude: number;
 
-  /** Identifier of the road segment containing this event, e.g., "segment_014" */
+  /** Identifier of the road segment containing this event, e.g., "segment_015" */
   road_segment_id: string;
 
-  /**
-   * Anomaly severity rating.
-   * Scale: 0 (very minor) → 100 (severe / critical).
-   */
-  severity: number;
+  /** Bus pass identifier for this event */
+  pass_id?: number;
 
-  /**
-   * Detection confidence score from signal processing.
-   * Scale: 0.0 (low) → 1.0 (certain).
-   */
-  confidence: number;
+  /** Event duration in seconds */
+  duration?: number;
 
-  /**
-   * Number of independent bus passes confirming this anomaly.
-   */
-  pass_count: number;
+  /** Event start timestamp in seconds */
+  start_time?: number;
+
+  /** Event end timestamp in seconds */
+  end_time?: number;
+
+  /** Geospatial map matching status, e.g. "matched" */
+  map_match_status?: string;
+
+  /** GPS quality flag */
+  gps_quality?: string;
+
+  /** Optional event-level rating if provided (do NOT fabricate if absent) */
+  severity?: number;
+
+  /** Optional event-level confidence score if provided (do NOT fabricate if absent) */
+  confidence?: number;
+
+  /** Number of independent bus passes confirming this anomaly */
+  pass_count?: number;
 
   // Optional alias fields for UI component convenience
   id?: string;
@@ -98,4 +108,22 @@ export interface RoadSegment {
 
   /** Aggregated confidence score for this segment (0.0 - 1.0) */
   confidence: number;
+
+  // Backend pipeline scoring fields
+  road_segment_id?: string;
+  total_event_count?: number;
+  unique_pass_count?: number;
+  pothole_count?: number;
+  speed_breaker_count?: number;
+  rough_road_count?: number;
+  rough_patch_count?: number;
+  severity_score?: number;
+  severity_label?: string;
+  confidence_score?: number;
+  confidence_percent?: number;
+  confidence_label?: string;
+  primary_condition?: string;
+  pass_ids?: string;
+  event_types_observed?: string;
+  raw_severity?: number;
 }

@@ -3,42 +3,49 @@
  *
  * Data Access Layer for RoadPulse.
  *
- * Provides async functions to fetch road anomaly events and segment summaries.
- * Currently backed by mock data (lib/mockData.ts).
- *
- * In production / backend integration:
- * Replace the return statements in fetchRoadEvents() and fetchRoadSegments()
- * with actual fetch() calls to the Python REST API (e.g. GET /api/events).
- * UI components consuming these functions will require ZERO code changes.
+ * Connects directly to the live ROADPULSE FastAPI backend (http://localhost:8000).
+ * Strictly requires the live backend to be running — does NOT silently fall back to mock data.
  */
 
 import type { RoadEvent, RoadSegment, EventType } from "./types";
-import { MOCK_EVENTS, MOCK_SEGMENTS } from "./mockData";
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 export interface EventFilterOptions {
   eventType?: EventType | "all";
-  minSeverity?: number;
   segmentId?: string;
 }
 
 /**
- * Fetch road anomaly events, with optional filtering.
+ * Check if the ROADPULSE FastAPI backend is alive and healthy.
+ */
+export async function checkApiHealth(): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/health`, { cache: "no-store" });
+    if (!res.ok) return false;
+    const data = await res.json();
+    return data.status === "ok";
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Fetch real road anomaly events from FastAPI GET /events.
+ * Throws an Error if the backend is unreachable.
  */
 export async function getRoadEvents(filters?: EventFilterOptions): Promise<RoadEvent[]> {
-  // Simulate asynchronous network delay (100ms)
-  await new Promise((resolve) => setTimeout(resolve, 100));
-
-  let events = [...MOCK_EVENTS];
+  const res = await fetch(`${API_BASE_URL}/events`, { cache: "no-store" });
+  if (!res.ok) {
+    throw new Error(`Failed to fetch events from API (status ${res.status})`);
+  }
+  let events: RoadEvent[] = await res.json();
 
   if (filters?.eventType && filters.eventType !== "all") {
     events = events.filter((e) => e.event_type === filters.eventType);
   }
 
-  if (filters?.minSeverity !== undefined) {
-    events = events.filter((e) => e.severity >= filters.minSeverity!);
-  }
-
-  if (filters?.segmentId) {
+  if (filters?.segmentId && filters.segmentId !== "all") {
     events = events.filter((e) => e.road_segment_id === filters.segmentId);
   }
 
@@ -46,21 +53,21 @@ export async function getRoadEvents(filters?: EventFilterOptions): Promise<RoadE
 }
 
 /**
- * Fetch summary information for all road segments.
+ * Fetch real scored road segments from FastAPI GET /segments.
+ * Throws an Error if the backend is unreachable.
  */
 export async function getRoadSegments(): Promise<RoadSegment[]> {
-  // Simulate asynchronous network delay (100ms)
-  await new Promise((resolve) => setTimeout(resolve, 100));
-
-  return [...MOCK_SEGMENTS];
+  const res = await fetch(`${API_BASE_URL}/segments`, { cache: "no-store" });
+  if (!res.ok) {
+    throw new Error(`Failed to fetch segments from API (status ${res.status})`);
+  }
+  return await res.json();
 }
 
 /**
- * Fetch a single road segment by its ID.
+ * Fetch a single road segment by its ID from the live API.
  */
 export async function getRoadSegmentById(id: string): Promise<RoadSegment | null> {
-  await new Promise((resolve) => setTimeout(resolve, 100));
-
-  const segment = MOCK_SEGMENTS.find((s) => s.id === id);
-  return segment || null;
+  const segments = await getRoadSegments();
+  return segments.find((s) => s.id === id || s.road_segment_id === id) || null;
 }
