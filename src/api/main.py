@@ -62,7 +62,7 @@ app = FastAPI(
 ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-    "https://roadpulse-jyq7b7xjd-route-254b.vercel.app",
+    "https://roadpulse-o41102c1x-route-254b.vercel.app",
 ]
 app.add_middleware(
     CORSMiddleware,
