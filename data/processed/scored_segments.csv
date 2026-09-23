@@ -1,0 +1,6 @@
+road_segment_id,total_event_count,unique_pass_count,pothole_count,speed_breaker_count,rough_road_count,pass_ids,event_types_observed,raw_severity,severity_score,severity_label,confidence_score,confidence_percent,confidence_label,primary_condition
+segment_015,4,4,4,0,0,"1,2,3,4",pothole,12,100.0,critical,1.0,100.0,very_high,pothole
+segment_016,4,4,0,4,0,"1,2,3,4",speed_breaker,4,33.3333,moderate,1.0,100.0,very_high,speed_breaker
+segment_017,2,2,2,0,0,"1,2",pothole,6,50.0,high,0.5,50.0,high,pothole
+segment_018,4,4,0,0,4,"1,2,3,4",rough_road,8,66.6667,high,1.0,100.0,very_high,rough_road
+segment_019,2,2,2,0,0,"1,4",pothole,6,50.0,high,0.5,50.0,high,pothole

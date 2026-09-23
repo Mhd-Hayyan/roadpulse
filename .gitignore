@@ -82,6 +82,8 @@ dmypy.json
 # Raw and processed data files can be large — ignore contents, keep dirs
 data/raw/*
 data/processed/*
+!data/processed/map_matched_events.csv
+!data/processed/scored_segments.csv
 !data/raw/.gitkeep
 !data/processed/.gitkeep
 
