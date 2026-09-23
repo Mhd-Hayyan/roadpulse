@@ -54,7 +54,7 @@ Bus smartphone sensors
 | `tests/` | Unit and integration tests for all modules |
 | `app/` | Next.js App Router — frontend pages and API routes |
 
-## Current Status — Milestone 2 Complete
+## Current Status — Milestone 5 Complete
 
 - [x] Project directory structure created
 - [x] Python virtual environment (`.venv`) created
@@ -64,7 +64,12 @@ Bus smartphone sensors
 - [x] Mock sensor data generator (`src/generator/mock_data.py`) implemented
 - [x] Multi-pass raw sensor dataset generated (`data/raw/sensor_data.csv`)
 - [x] Dataset validation suite passing (`tests/test_sensor_data.py`)
-- [ ] Signal processing & noise filtering — not yet implemented
+- [x] Signal inspection & visualization (`src/processing/inspect_signals.py`) implemented
+- [x] Signal inspection test suite passing (`tests/test_signal_inspection.py`)
+- [x] Sensor preprocessing pipeline (`src/processing/preprocessing.py`) implemented
+- [x] Preprocessing test suite passing (`tests/test_preprocessing.py`)
+- [x] Feature extraction pipeline (`src/processing/features.py`) implemented
+- [x] Feature extraction test suite passing (`tests/test_features.py`)
 - [ ] Event detection & classification — not yet implemented
 - [ ] Geospatial map-matching — not yet implemented
 - [ ] Multi-pass aggregation & scoring — not yet implemented
@@ -83,6 +88,42 @@ Bus smartphone sensors
   - `ground_truth_event` (0 or 1): Binary flag indicating whether the sample coincides with a true road surface anomaly.
   - `ground_truth_type`: Describes the simulated scenario (`none`, `pothole`, `speed_breaker`, `rough_road`, `braking`, `turning`, `acceleration`).
 - **Separation of Ground Truth:** The ground-truth columns are provided **strictly for validation, testing, and benchmark evaluation**. Future signal processing and detection pipelines must never read or depend on these columns; detections will be made purely from raw sensor and GPS streams.
+
+## Milestone 3 — Signal Inspection
+
+- **Why Signal Inspection is Necessary:** Before designing filtering stages, heuristic thresholds, or feature extractors for anomaly detection, inspecting the raw signal plots is essential to understand baseline noise levels, impact impulse profiles, decay times, and maneuver patterns (such as braking or turning).
+- **What Signals are Inspected:**
+  - **Accelerometer ($a_x, a_y, a_z$):** Baseline gravity (~9.81 m/s²), sharp impulse shocks on $a_z$, longitudinal braking/acceleration on $a_y$, and lateral swaying/turning on $a_x$.
+  - **Gyroscope ($g_x, g_y, g_z$):** Rotational rates, especially pitch ($g_y$) over speed breakers/braking and yaw ($g_z$) during turns.
+  - **GPS Trajectory:** Route tracking from start to end in Ernakulam, Kerala.
+  - **Combined Timeline Overview:** Contrast of road surface anomalies against vehicle maneuvers across key motion channels.
+- **Ground Truth Role:** Ground-truth scenario labels and time windows are plotted solely as visual references for human inspection. They are not used to formulate detection rules or calculate thresholds.
+- **Plot Output Location:** Generated visualization plots are stored under `data/processed/inspection/`:
+  - `pass_1_accelerometer.png`: Tri-axial accelerometer time series with event overlays.
+  - `pass_1_gyroscope.png`: Tri-axial gyroscope time series with event overlays.
+  - `pass_1_gps_trajectory.png`: Spatial trajectory with annotated event sections.
+  - `pass_1_combined_overview.png`: Multi-sensor overview contrasting vertical shocks against maneuvers.
+
+## Milestone 4 — Sensor Preprocessing
+
+- **Why Preprocessing is Needed:** Raw smartphone IMU data contains high-frequency electronic noise, road surface vibration hash, and a large gravitational bias (~9.81 m/s² on $a_z$). Preprocessing conditions the signals so feature extractors can accurately measure anomaly impulses and vehicle dynamics without being misled by sensor jitter.
+- **What Smoothing Does:** A lightweight, symmetric rolling average (0.10 s / 5 samples at 50 Hz) reduces point-to-point electronic jitter while strictly preserving short-duration physical events (pothole spikes lasting 0.15–0.30 s). Heavy low-pass filtering is avoided so impact transients are not flattened.
+- **Why Gravity Removal is Useful:** Static gravity masks relative road shocks. By estimating a slow-moving baseline ($a_{z,\text{baseline}}$ over a 2.0 s window), we derive the dynamic vertical component ($a_{z,\text{dynamic}} = a_{z,\text{smooth}} - a_{z,\text{baseline}}$), centered cleanly around $0.0\text{ m/s}^2$ on flat terrain.
+- **Why Raw Signals are Preserved:** All original raw channels (`accel_x`, `accel_y`, `accel_z`, `gyro_x`, `gyro_y`, `gyro_z`), timestamps, GPS coordinates, and ground-truth tags are preserved side-by-side with processed features for auditability and validation.
+- **Why Orientation Correction is Postponed:** Real-world deployments require estimating smartphone attitude (Euler angles/quaternions) to project sensor readings into vehicle coordinates. Because our simulation mounts the sensor directly aligned with the bus frame, orientation estimation is deferred to keep the hackathon codebase explainable and beginner-friendly.
+- **Output Location:** The processed dataset is saved to `data/processed/preprocessed_sensor_data.csv`.
+
+## Milestone 5 — Feature Extraction
+
+- **What is a Time Window?** Instead of classifying every individual 20 ms sensor reading in isolation, we group consecutive readings into time windows (e.g. 25 samples spanning ~0.50 seconds). Road events like potholes and speed breakers unfold over time, so an entire window captures the complete physical impulse and recovery.
+- **Why Use Overlapping Windows?** With a 50% overlap (12-sample step size / ~0.24 s advance), every moment in time is covered by at least two windows. This prevents a critical anomaly spike that occurs near a window boundary from being split into two weak, undetected halves.
+- **Why Multiple Features Instead of Raw Samples?** Raw instantaneous accelerations fluctuate rapidly due to road texture and vibrations. Aggregating into statistical and physical features summarizes the shape, magnitude, and directionality of the motion:
+  - **Peak-to-Peak Range & Max Absolute Value:** Measure the extreme impact force, distinguishing a sharp pothole dip/spike ($>3\text{ m/s}^2$) from benign cruising.
+  - **Root Mean Square (RMS) & Signal Energy:** Quantify sustained vibration power over time, clearly identifying extended rough road patches even when individual peaks are moderate.
+  - **Standard Deviation (Variance):** Indicates signal turbulence; flat smooth road has low variance, while anomalies produce high variance.
+  - **Longitudinal ($a_y$) vs. Lateral ($a_x$) vs. Vertical ($a_z$):** Decouples maneuvers (braking drops $a_y$, turning spikes $a_x$ and yaw rate $g_z$) from road surface defects (which dominate $a_z$).
+- **Strict Ground Truth Isolation:** Ground truth columns (`ground_truth_event`, `ground_truth_type`) are strictly excluded during feature calculation and do not exist in the features dataset. Detection code will rely exclusively on sensor-derived motion statistics.
+- **Output Location:** The extracted features dataset is saved to `data/processed/features.csv`.
 
 ## Getting Started
 

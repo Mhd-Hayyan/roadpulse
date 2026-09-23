@@ -62,7 +62,69 @@ def _check(label, condition, detail=""):
     return condition
 
 
-# ─── Validation ───────────────────────────────────────────────────────────────
+# ─── Pytest-compatible individual test functions ──────────────────────────────
+
+def test_csv_file_exists():
+    assert CSV_PATH.exists()
+
+def test_all_expected_columns_present():
+    df = pd.read_csv(CSV_PATH)
+    assert set(EXPECTED_COLUMNS).issubset(set(df.columns))
+
+def test_minimum_passes_present():
+    df = pd.read_csv(CSV_PATH)
+    assert df["pass_id"].nunique() >= MIN_PASSES
+
+def test_timestamps_monotonically_increasing():
+    df = pd.read_csv(CSV_PATH)
+    for _, grp in df.groupby("pass_id"):
+        diffs = np.diff(grp["timestamp"].values)
+        assert np.all(diffs > 0)
+
+def test_all_required_ground_truth_labels_present():
+    df = pd.read_csv(CSV_PATH)
+    assert EXPECTED_GT_TYPES.issubset(set(df["ground_truth_type"].unique()))
+
+def test_sampling_interval_pass_1():
+    df = pd.read_csv(CSV_PATH)
+    diffs = np.diff(df[df["pass_id"] == 1]["timestamp"].values)
+    assert abs(diffs.mean() - SAMPLE_INTERVAL) < INTERVAL_TOLERANCE
+
+def test_sampling_interval_pass_2():
+    df = pd.read_csv(CSV_PATH)
+    diffs = np.diff(df[df["pass_id"] == 2]["timestamp"].values)
+    assert abs(diffs.mean() - SAMPLE_INTERVAL) < INTERVAL_TOLERANCE
+
+def test_sampling_interval_pass_3():
+    df = pd.read_csv(CSV_PATH)
+    diffs = np.diff(df[df["pass_id"] == 3]["timestamp"].values)
+    assert abs(diffs.mean() - SAMPLE_INTERVAL) < INTERVAL_TOLERANCE
+
+def test_sampling_interval_pass_4():
+    df = pd.read_csv(CSV_PATH)
+    diffs = np.diff(df[df["pass_id"] == 4]["timestamp"].values)
+    assert abs(diffs.mean() - SAMPLE_INTERVAL) < INTERVAL_TOLERANCE
+
+def test_no_nan_values_in_sensor_columns():
+    df = pd.read_csv(CSV_PATH)
+    sensor_cols = ["accel_x", "accel_y", "accel_z", "gyro_x", "gyro_y", "gyro_z"]
+    assert not df[sensor_cols].isnull().any().any()
+
+def test_gps_coordinates_within_kerala_bounding_box():
+    df = pd.read_csv(CSV_PATH)
+    assert df["latitude"].between(8.0, 12.8).all()
+    assert df["longitude"].between(74.8, 77.5).all()
+
+def test_dataset_sample_count():
+    df = pd.read_csv(CSV_PATH)
+    assert len(df) > 1000
+
+def test_ground_truth_event_is_binary():
+    df = pd.read_csv(CSV_PATH)
+    assert set(df["ground_truth_event"].unique()).issubset({0, 1})
+
+
+# ─── Validation Runner ────────────────────────────────────────────────────────
 
 def run():
     results = []
