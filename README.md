@@ -37,7 +37,7 @@ Bus smartphone sensors
      [api]      ── Serves results to a frontend map dashboard
         │
         ▼
-  [frontend/]  ── Next.js dashboard — heatmap, event markers, filters
+   [frontend/]  ── Next.js dashboard — heatmap, event markers, filters
 ```
 
 ## Directory Structure
@@ -54,23 +54,35 @@ Bus smartphone sensors
 | `tests/` | Unit and integration tests for all modules |
 | `app/` | Next.js App Router — frontend pages and API routes |
 
-## Current Status — Milestone 1
+## Current Status — Milestone 2 Complete
 
-This milestone establishes the project skeleton only:
+- [x] Project directory structure created
+- [x] Python virtual environment (`.venv`) created
+- [x] Package `__init__.py` files in place
+- [x] `.gitignore` configured
+- [x] Next.js + TypeScript + Tailwind CSS + Leaflet frontend scaffolded
+- [x] Mock sensor data generator (`src/generator/mock_data.py`) implemented
+- [x] Multi-pass raw sensor dataset generated (`data/raw/sensor_data.csv`)
+- [x] Dataset validation suite passing (`tests/test_sensor_data.py`)
+- [ ] Signal processing & noise filtering — not yet implemented
+- [ ] Event detection & classification — not yet implemented
+- [ ] Geospatial map-matching — not yet implemented
+- [ ] Multi-pass aggregation & scoring — not yet implemented
+- [ ] REST API — not yet implemented
+- [ ] Frontend dashboard — not yet implemented
 
-- ✅ Project directory structure created
-- ✅ Python virtual environment (`.venv`) created
-- ✅ Package `__init__.py` files in place
-- ✅ `.gitignore` configured
-- ✅ Next.js + TypeScript + Tailwind CSS + Leaflet frontend scaffolded
-- ⬜ Sensor simulation — not yet implemented
-- ⬜ Signal processing — not yet implemented
-- ⬜ Event detection — not yet implemented
-- ⬜ Geospatial map-matching — not yet implemented
-- ⬜ Aggregation & scoring — not yet implemented
-- ⬜ REST API — not yet implemented
-- ⬜ Frontend dashboard — not yet implemented
-- ⬜ Dependencies — not yet chosen (`requirements.txt` is empty)
+## Mock Sensor Data & Simulation
+
+- **Why mock data?** Real-world bus deployment requires hardware installation, transport permissions, and extensive driving hours. A physically grounded synthetic generator allows rapid, reproducible prototyping and testing of road-anomaly algorithms under known, controlled conditions.
+- **Why 50 Hz?** Standard smartphone IMU sensors (accelerometer & gyroscope) comfortably sample at 50 Hz (20 ms interval). This provides sufficient temporal resolution to capture sharp pothole impacts (~100–300 ms) and speed-breaker profiles without generating excessively large log files.
+- **What sensors are simulated?**
+  - **Tri-axial Accelerometer (`accel_x`, `accel_y`, `accel_z`):** Lateral sway/turns, longitudinal braking/acceleration, and vertical road shocks (including gravity ~9.81 m/s²).
+  - **Tri-axial Gyroscope (`gyro_x`, `gyro_y`, `gyro_z`):** Roll, pitch, and yaw angular velocities in rad/s.
+  - **GPS (`latitude`, `longitude`):** Time-interpolated coordinates along a fictional Kerala route with realistic ~5–10 m noise.
+- **Ground-Truth Labels:**
+  - `ground_truth_event` (0 or 1): Binary flag indicating whether the sample coincides with a true road surface anomaly.
+  - `ground_truth_type`: Describes the simulated scenario (`none`, `pothole`, `speed_breaker`, `rough_road`, `braking`, `turning`, `acceleration`).
+- **Separation of Ground Truth:** The ground-truth columns are provided **strictly for validation, testing, and benchmark evaluation**. Future signal processing and detection pipelines must never read or depend on these columns; detections will be made purely from raw sensor and GPS streams.
 
 ## Getting Started
 

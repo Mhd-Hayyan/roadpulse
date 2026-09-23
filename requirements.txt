@@ -1,2 +1,2 @@
-# Dependencies will be added here as the project grows.
-# Left intentionally empty for Milestone 1.
+numpy
+pandas
